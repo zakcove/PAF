@@ -1,24 +1,20 @@
 package vttp.batch5.paf.movies.models;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-
 public class Movie {
     private String imdbId;
     private String title;
-    private List<String> directors = new ArrayList<>();
+    private String directors;
     private String overview;
     private String tagline;
-    private List<String> genres = new ArrayList<>();
-    private Float imdbRating;
-    private Integer imdbVotes;
-    private Float voteAverage;
-    private Integer voteCount;
-    private Date releaseDate;
-    private Double revenue;
-    private Double budget;
-    private Integer runtime;
+    private String genres;
+    private double imdbRating;
+    private int imdbVotes;
+    private double voteAverage;
+    private int voteCount;
+    private String releaseDate;
+    private long revenue;
+    private long budget;
+    private int runtime;
 
     public String getImdbId() {
         return imdbId;
@@ -36,12 +32,12 @@ public class Movie {
         this.title = title;
     }
 
-    public List<String> getDirectors() {
+    public String getDirectors() {
         return directors;
     }
 
-    public void setDirectors(List<String> directors) {
-        this.directors = directors == null ? new ArrayList<>() : directors;
+    public void setDirectors(String directors) {
+        this.directors = directors;
     }
 
     public String getOverview() {
@@ -60,75 +56,75 @@ public class Movie {
         this.tagline = tagline;
     }
 
-    public List<String> getGenres() {
+    public String getGenres() {
         return genres;
     }
 
-    public void setGenres(List<String> genres) {
-        this.genres = genres == null ? new ArrayList<>() : genres;
+    public void setGenres(String genres) {
+        this.genres = genres;
     }
 
-    public Float getImdbRating() {
+    public double getImdbRating() {
         return imdbRating;
     }
 
-    public void setImdbRating(Float imdbRating) {
+    public void setImdbRating(double imdbRating) {
         this.imdbRating = imdbRating;
     }
 
-    public Integer getImdbVotes() {
+    public int getImdbVotes() {
         return imdbVotes;
     }
 
-    public void setImdbVotes(Integer imdbVotes) {
+    public void setImdbVotes(int imdbVotes) {
         this.imdbVotes = imdbVotes;
     }
 
-    public Float getVoteAverage() {
+    public double getVoteAverage() {
         return voteAverage;
     }
 
-    public void setVoteAverage(Float voteAverage) {
+    public void setVoteAverage(double voteAverage) {
         this.voteAverage = voteAverage;
     }
 
-    public Integer getVoteCount() {
+    public int getVoteCount() {
         return voteCount;
     }
 
-    public void setVoteCount(Integer voteCount) {
+    public void setVoteCount(int voteCount) {
         this.voteCount = voteCount;
     }
 
-    public Date getReleaseDate() {
+    public String getReleaseDate() {
         return releaseDate;
     }
 
-    public void setReleaseDate(Date releaseDate) {
+    public void setReleaseDate(String releaseDate) {
         this.releaseDate = releaseDate;
     }
 
-    public Double getRevenue() {
+    public long getRevenue() {
         return revenue;
     }
 
-    public void setRevenue(Double revenue) {
+    public void setRevenue(long revenue) {
         this.revenue = revenue;
     }
 
-    public Double getBudget() {
+    public long getBudget() {
         return budget;
     }
 
-    public void setBudget(Double budget) {
+    public void setBudget(long budget) {
         this.budget = budget;
     }
 
-    public Integer getRuntime() {
+    public int getRuntime() {
         return runtime;
     }
 
-    public void setRuntime(Integer runtime) {
+    public void setRuntime(int runtime) {
         this.runtime = runtime;
     }
 }
