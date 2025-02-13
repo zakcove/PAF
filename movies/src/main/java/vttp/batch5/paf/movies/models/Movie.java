@@ -6,19 +6,19 @@ import java.util.List;
 
 public class Movie {
     private String imdbId;
-    private String title = "";
+    private String title;
     private List<String> directors = new ArrayList<>();
-    private String overview = "";
-    private String tagline = "";
+    private String overview;
+    private String tagline;
     private List<String> genres = new ArrayList<>();
-    private Float imdbRating = 0f;
-    private Integer imdbVotes = 0;
-    private Float voteAverage = 0f;
-    private Integer voteCount = 0;
+    private Float imdbRating;
+    private Integer imdbVotes;
+    private Float voteAverage;
+    private Integer voteCount;
     private Date releaseDate;
-    private Double revenue = 0.0;
-    private Double budget = 1000000.0;
-    private Integer runtime = 90;
+    private Double revenue;
+    private Double budget;
+    private Integer runtime;
 
     // Getters and Setters
     public String getImdbId() {
@@ -34,7 +34,7 @@ public class Movie {
     }
 
     public void setTitle(String title) {
-        this.title = title == null ? "" : title;
+        this.title = title;
     }
 
     public List<String> getDirectors() {
@@ -50,7 +50,7 @@ public class Movie {
     }
 
     public void setOverview(String overview) {
-        this.overview = overview == null ? "" : overview;
+        this.overview = overview;
     }
 
     public String getTagline() {
@@ -58,7 +58,7 @@ public class Movie {
     }
 
     public void setTagline(String tagline) {
-        this.tagline = tagline == null ? "" : tagline;
+        this.tagline = tagline;
     }
 
     public List<String> getGenres() {
@@ -74,7 +74,7 @@ public class Movie {
     }
 
     public void setImdbRating(Float imdbRating) {
-        this.imdbRating = imdbRating == null ? 0f : imdbRating;
+        this.imdbRating = imdbRating;
     }
 
     public Integer getImdbVotes() {
@@ -82,7 +82,7 @@ public class Movie {
     }
 
     public void setImdbVotes(Integer imdbVotes) {
-        this.imdbVotes = imdbVotes == null ? 0 : imdbVotes;
+        this.imdbVotes = imdbVotes;
     }
 
     public Float getVoteAverage() {
@@ -90,7 +90,7 @@ public class Movie {
     }
 
     public void setVoteAverage(Float voteAverage) {
-        this.voteAverage = voteAverage == null ? 0f : voteAverage;
+        this.voteAverage = voteAverage;
     }
 
     public Integer getVoteCount() {
@@ -98,7 +98,7 @@ public class Movie {
     }
 
     public void setVoteCount(Integer voteCount) {
-        this.voteCount = voteCount == null ? 0 : voteCount;
+        this.voteCount = voteCount;
     }
 
     public Date getReleaseDate() {
@@ -114,7 +114,7 @@ public class Movie {
     }
 
     public void setRevenue(Double revenue) {
-        this.revenue = revenue == null ? 0.0 : revenue;
+        this.revenue = revenue;
     }
 
     public Double getBudget() {
@@ -122,7 +122,7 @@ public class Movie {
     }
 
     public void setBudget(Double budget) {
-        this.budget = budget == null ? 1000000.0 : budget;
+        this.budget = budget;
     }
 
     public Integer getRuntime() {
@@ -130,6 +130,6 @@ public class Movie {
     }
 
     public void setRuntime(Integer runtime) {
-        this.runtime = runtime == null ? 90 : runtime;
+        this.runtime = runtime;
     }
 }

@@ -11,6 +11,7 @@ import org.springframework.data.mongodb.core.aggregation.*;
 import static org.springframework.data.mongodb.core.aggregation.Aggregation.*;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.mongodb.core.index.Index;
 
 @Repository
 public class MongoMovieRepository {
@@ -27,6 +28,11 @@ public class MongoMovieRepository {
      * ])
      */
     public void batchInsertMovies(List<Movie> movies) {
+        if (!mongoTemplate.collectionExists("imdb")) {
+            mongoTemplate.createCollection("imdb");
+            mongoTemplate.indexOps("imdb").ensureIndex(new Index("imdb_id", Sort.Direction.ASC).unique());
+        }
+
         List<Document> documents = movies.stream()
             .map(movie -> new Document()
                 .append("imdb_id", movie.getImdbId())
@@ -39,19 +45,21 @@ public class MongoMovieRepository {
                 .append("imdb_votes", movie.getImdbVotes()))
             .toList();
         
-        mongoTemplate.getCollection("imdb").insertMany(documents);
+        if (!documents.isEmpty()) {
+            mongoTemplate.getCollection("imdb").insertMany(documents);
+        }
     }
 
     /*
      * db.errors.insertOne({
-     *   ids: [...],
+     *   imdb_ids: [...],
      *   error: "error message",
      *   timestamp: new Date()
      * })
      */
     public void logError(List<String> ids, String errorMsg) {
         Document errorDoc = new Document()
-            .append("ids", ids)
+            .append("imdb_ids", ids)
             .append("error", errorMsg)
             .append("timestamp", new Date());
         
@@ -88,5 +96,9 @@ public class MongoMovieRepository {
 
         return mongoTemplate.aggregate(aggregation, "imdb", Document.class)
             .getMappedResults();
+    }
+
+    public boolean hasData() {
+        return mongoTemplate.getCollection("imdb").countDocuments() > 0;
     }
 }

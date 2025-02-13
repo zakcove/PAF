@@ -18,12 +18,6 @@ public class MovieService {
   @Autowired
   private MySQLMovieRepository mysqlRepo;
 
-  // TODO: Task 2
-  
-
-  // TODO: Task 3
-  // You may change the signature of this method by passing any number of parameters
-  // and returning any type
   public List<Map<String, Object>> getProlificDirectors(int limit) {
     List<Document> topDirectors = mongoRepo.getTopDirectors(limit);
     
@@ -32,11 +26,17 @@ public class MovieService {
             String directorName = doc.getString("_id");
             Map<String, Object> financials = mysqlRepo.getDirectorFinancials(directorName);
             
+            double totalRevenue = (Double) financials.get("total_revenue");
+            double totalBudget = (Double) financials.get("total_budget");
+            double profitLoss = totalRevenue - totalBudget;
+
             Map<String, Object> result = new HashMap<>();
             result.put("director_name", directorName);
             result.put("movies_count", doc.getInteger("movies_count", 0));
-            result.put("total_revenue", financials.get("total_revenue"));
-            result.put("total_budget", financials.get("total_budget"));
+            result.put("total_revenue", totalRevenue);
+            result.put("total_budget", totalBudget);
+            result.put("profit_loss", profitLoss);
+            result.put("profit_status", profitLoss >= 0 ? "Profit" : "Loss");
             
             return result;
         })
