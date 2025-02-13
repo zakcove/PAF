@@ -20,6 +20,7 @@ import java.util.Date;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.io.StringReader;
+import java.util.Arrays;
 
 @Component
 public class Dataloader implements CommandLineRunner {
@@ -44,7 +45,7 @@ public class Dataloader implements CommandLineRunner {
         }
 
         Calendar cal = Calendar.getInstance();
-        cal.set(2018, Calendar.JANUARY, 1);
+        cal.set(2010, Calendar.JANUARY, 1);
         Date startDate = cal.getTime();
 
         try (ZipInputStream zis = new ZipInputStream(dataFile.getInputStream())) {
@@ -89,7 +90,7 @@ public class Dataloader implements CommandLineRunner {
     }
 
     private boolean isDataLoaded() {
-        
+
         return mongoRepo.hasData() && mysqlRepo.hasData();
     }
 
@@ -114,30 +115,24 @@ public class Dataloader implements CommandLineRunner {
         
         List<String> directors = new ArrayList<>();
         if (json.containsKey("directors")) {
-            String directorsStr = json.getString("directors", "[]");
-            try {
-                JsonReader reader = Json.createReader(new StringReader(directorsStr));
-                directors = reader.readArray().stream()
-                    .map(v -> v.toString().replaceAll("\"", "").trim())
+            String directorsStr = json.getString("directors", "");
+            if (!directorsStr.isEmpty()) {
+                directors = Arrays.stream(directorsStr.split(","))
+                    .map(String::trim)
                     .filter(d -> !d.isEmpty())
                     .toList();
-            } catch (Exception e) {
-                System.err.println("Error parsing directors: " + e.getMessage());
             }
         }
         movie.setDirectors(directors);
         
         List<String> genres = new ArrayList<>();
         if (json.containsKey("genres")) {
-            String genresStr = json.getString("genres", "[]");
-            try {
-                JsonReader reader = Json.createReader(new StringReader(genresStr));
-                genres = reader.readArray().stream()
-                    .map(v -> v.toString().replaceAll("\"", "").trim())
+            String genresStr = json.getString("genres", "");
+            if (!genresStr.isEmpty()) {
+                genres = Arrays.stream(genresStr.split(","))
+                    .map(String::trim)
                     .filter(g -> !g.isEmpty())
                     .toList();
-            } catch (Exception e) {
-                System.err.println("Error parsing genres: " + e.getMessage());
             }
         }
         movie.setGenres(genres);

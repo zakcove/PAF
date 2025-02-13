@@ -18,9 +18,8 @@ public class MySQLMovieRepository {
     private JdbcTemplate jdbcTemplate;
 
     private static final String SQL_INSERT_MOVIE = """
-        INSERT INTO imdb (imdb_id, title, overview, tagline, imdb_rating, imdb_votes,
-                         vote_average, vote_count, release_date, revenue, budget, runtime) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO imdb (imdb_id, vote_average, vote_count, release_date, revenue, budget, runtime) 
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         """;
 
     private static final String SQL_INSERT_DIRECTOR = """
