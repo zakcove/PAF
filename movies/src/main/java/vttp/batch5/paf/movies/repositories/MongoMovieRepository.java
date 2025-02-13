@@ -7,6 +7,10 @@ import vttp.batch5.paf.movies.models.Movie;
 import java.util.List;
 import java.util.Date;
 import org.bson.Document;
+import org.springframework.data.mongodb.core.aggregation.*;
+import static org.springframework.data.mongodb.core.aggregation.Aggregation.*;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.domain.Sort;
 
 @Repository
 public class MongoMovieRepository {
@@ -52,5 +56,37 @@ public class MongoMovieRepository {
             .append("timestamp", new Date());
         
         mongoTemplate.getCollection("errors").insertOne(errorDoc);
+    }
+
+    /*
+     * db.imdb.aggregate([
+     *   { $unwind: "$directors" },
+     *   { $group: {
+     *       _id: "$directors",
+     *       movies_count: { $sum: 1 }
+     *   } },
+     *   { $match: { _id: { $ne: "" } } },
+     *   { $sort: { movies_count: -1 } },
+     *   { $limit: n }
+     * ])
+     */
+    public List<Document> getTopDirectors(int limit) {
+        AggregationOperation unwindDirectors = unwind("directors");
+        AggregationOperation groupByDirector = group("directors")
+            .count().as("movies_count");
+        AggregationOperation matchNonEmpty = match(Criteria.where("_id").ne(""));
+        AggregationOperation sortByCount = sort(Sort.Direction.DESC, "movies_count");
+        AggregationOperation limitResults = limit(limit);
+
+        Aggregation aggregation = newAggregation(
+            unwindDirectors,
+            groupByDirector,
+            matchNonEmpty,
+            sortByCount,
+            limitResults
+        );
+
+        return mongoTemplate.aggregate(aggregation, "imdb", Document.class)
+            .getMappedResults();
     }
 }
