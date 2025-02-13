@@ -67,9 +67,8 @@ public class Dataloader implements CommandLineRunner {
                 try (JsonReader reader = Json.createReader(new StringReader(jsonContent.toString()))) {
                     JsonObject movieJson = reader.readObject();
                     try {
-                        Date releaseDate = dateFormat.parse(movieJson.getString("release_date", "1970-01-01"));
-                        if (releaseDate.after(startDate)) {
-                            Movie movie = parseMovie(movieJson);
+                        Movie movie = parseMovie(movieJson);
+                        if (movie.getReleaseDate() != null && movie.getReleaseDate().after(startDate)) {
                             batch.add(movie);
                             
                             if (batch.size() == 25) {
@@ -79,6 +78,7 @@ public class Dataloader implements CommandLineRunner {
                         }
                     } catch (Exception e) {
                         System.err.println("Error processing movie: " + e.getMessage());
+                        e.printStackTrace();
                     }
                 }
             }
@@ -188,12 +188,13 @@ public class Dataloader implements CommandLineRunner {
             movie.setRuntime(90);
         }
         
-        if (json.containsKey("release_date")) {
-            try {
-                movie.setReleaseDate(dateFormat.parse(json.getString("release_date")));
-            } catch (Exception e) {
-                
-            }
+        try {
+            String releaseDateStr = json.getString("release_date", "1970-01-01");
+            movie.setReleaseDate(dateFormat.parse(releaseDateStr));
+        } catch (Exception e) {
+            Calendar cal = Calendar.getInstance();
+            cal.set(1970, Calendar.JANUARY, 1);
+            movie.setReleaseDate(cal.getTime());
         }
         
         return movie;
