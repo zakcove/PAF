@@ -1,202 +1,198 @@
 package vttp.batch5.paf.movies.bootstrap;
 
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.StringReader;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+import java.util.stream.Collectors;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
-import org.springframework.stereotype.Component;
-import vttp.batch5.paf.movies.repositories.MongoMovieRepository;
-import vttp.batch5.paf.movies.repositories.MySQLMovieRepository;
-import vttp.batch5.paf.movies.models.Movie;
 import org.springframework.core.io.Resource;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.zip.ZipInputStream;
-import java.util.zip.ZipEntry;
 import jakarta.json.Json;
-import jakarta.json.JsonReader;
 import jakarta.json.JsonObject;
-import java.util.Date;
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.io.StringReader;
-import java.util.Arrays;
+import jakarta.json.JsonReader;
+import jakarta.json.JsonValue;
+import vttp.batch5.paf.movies.repositories.MySQLMovieRepository;
+import vttp.batch5.paf.movies.repositories.MongoMovieRepository;
 
 @Component
 public class Dataloader implements CommandLineRunner {
 
-    @Value("${data.movies.file}")
-    private Resource dataFile;
+    @Autowired
+    private MySQLMovieRepository mysqlRepo;
 
     @Autowired
     private MongoMovieRepository mongoRepo;
 
     @Autowired
-    private MySQLMovieRepository mysqlRepo;
+    private JdbcTemplate jdbcTemplate;
 
-    private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+    @Autowired
+    private MongoTemplate mongoTemplate;
 
+    @Value("${data.movies.file}")
+    private Resource moviesZip;
+
+    private static final LocalDate CUT_OFF_DATE = LocalDate.of(2018, 1, 1);
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+    @SuppressWarnings("null")
     @Override
     public void run(String... args) throws Exception {
+        jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS imdb (
+                imdb_id VARCHAR(16) PRIMARY KEY,
+                vote_average FLOAT,
+                vote_count INT,
+                release_date DATE,
+                revenue DECIMAL(15, 2),
+                budget DECIMAL(15, 2),
+                runtime INT
+            )
+        """);
+
+        Long mysqlCount = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM imdb", Long.class);
     
-        if (isDataLoaded()) {
-            System.out.println("Data already loaded, skipping import");
-            return;
+        Long mongoCount = mongoTemplate.getCollection("imdb").countDocuments();
+
+        if (mysqlCount == 0 || mongoCount == 0) {
+            System.out.println("Loading movies data into databases...");
+            loadMoviesData();
+        } else {
+            System.out.println("Movies data already loaded in databases");
         }
+    }
 
-        Calendar cal = Calendar.getInstance();
-        cal.set(2010, Calendar.JANUARY, 1);
-        Date startDate = cal.getTime();
+    private void loadMoviesData() throws Exception {
+        List<JsonObject> filteredMovies = new ArrayList<>();
+        System.out.println("Reading movies from ZIP file...");
 
-        try (ZipInputStream zis = new ZipInputStream(dataFile.getInputStream())) {
-            ZipEntry entry;
-            List<Movie> batch = new ArrayList<>();
+        try (InputStream is = moviesZip.getInputStream();
+             ZipInputStream zis = new ZipInputStream(is)) {
             
+            ZipEntry entry;
             while ((entry = zis.getNextEntry()) != null) {
-                if (!entry.getName().endsWith(".json")) {
-                    continue;
-                }
-
-                StringBuilder jsonContent = new StringBuilder();
-                byte[] buffer = new byte[1024];
-                int len;
-                while ((len = zis.read(buffer)) > 0) {
-                    jsonContent.append(new String(buffer, 0, len));
-                }
-
-                try (JsonReader reader = Json.createReader(new StringReader(jsonContent.toString()))) {
-                    JsonObject movieJson = reader.readObject();
-                    try {
-                        Movie movie = parseMovie(movieJson);
-                        if (movie.getReleaseDate() != null && movie.getReleaseDate().after(startDate)) {
-                            batch.add(movie);
-                            
-                            if (batch.size() == 25) {
-                                processBatch(batch);
-                                batch.clear();
+                if (entry.getName().endsWith(".json")) {
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(zis));
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        try (JsonReader jsonReader = Json.createReader(new StringReader(line))) {
+                            JsonObject movieJson = jsonReader.readObject();
+                            JsonObject imputedMovie = imputeMissingValues(movieJson);
+                    
+                            if (isMovieAfter2018(imputedMovie)) {
+                                filteredMovies.add(imputedMovie);
                             }
+                        } catch (Exception e) {
+                            System.err.println("Error reading JSON line: " + e.getMessage());
+                            continue; 
                         }
-                    } catch (Exception e) {
-                        System.err.println("Error processing movie: " + e.getMessage());
-                        e.printStackTrace();
                     }
                 }
+                zis.closeEntry();
             }
+        }
+
+        System.out.println("Found " + filteredMovies.size() + " movies after 2010");
+        System.out.println("Inserting movies into databases...");
+
+        int totalBatches = (filteredMovies.size() + 24) / 25;
+        int currentBatch = 0;
+
+        for (int i = 0; i < filteredMovies.size(); i += 25) {
+            currentBatch++;
+            int endIndex = Math.min(i + 25, filteredMovies.size());
+            List<JsonObject> batch = filteredMovies.subList(i, endIndex);
             
-            if (!batch.isEmpty()) {
-                processBatch(batch);
-            }
-        }
-    }
-
-    private boolean isDataLoaded() {
-
-        return mongoRepo.hasData() && mysqlRepo.hasData();
-    }
-
-    private void processBatch(List<Movie> batch) {
-        try {
-            mysqlRepo.batchInsertMovies(batch);
-            mongoRepo.batchInsertMovies(batch);
-        } catch (Exception e) {
-            List<String> ids = batch.stream()
-                .map(Movie::getImdbId)
-                .toList();
-            mongoRepo.logError(ids, e.getMessage());
-        }
-    }
-
-    private Movie parseMovie(JsonObject json) {
-        Movie movie = new Movie();
-        movie.setImdbId(json.getString("imdb_id", ""));
-        movie.setTitle(json.getString("title", ""));
-        movie.setOverview(json.getString("overview", ""));
-        movie.setTagline(json.getString("tagline", ""));
-        
-        List<String> directors = new ArrayList<>();
-        if (json.containsKey("directors")) {
-            String directorsStr = json.getString("directors", "");
-            if (!directorsStr.isEmpty()) {
-                directors = Arrays.stream(directorsStr.split(","))
-                    .map(String::trim)
-                    .filter(d -> !d.isEmpty())
-                    .toList();
-            }
-        }
-        movie.setDirectors(directors);
-        
-        List<String> genres = new ArrayList<>();
-        if (json.containsKey("genres")) {
-            String genresStr = json.getString("genres", "");
-            if (!genresStr.isEmpty()) {
-                genres = Arrays.stream(genresStr.split(","))
-                    .map(String::trim)
-                    .filter(g -> !g.isEmpty())
-                    .toList();
-            }
-        }
-        movie.setGenres(genres);
-        
-        if (json.containsKey("imdb_rating")) {
             try {
-                movie.setImdbRating((float) json.getJsonNumber("imdb_rating").doubleValue());
+                mysqlRepo.batchInsertMovies(batch);
+                mongoRepo.batchInsertMovies(batch);
+                System.out.printf("Processed batch %d/%d%n", currentBatch, totalBatches);
             } catch (Exception e) {
+                List<String> failedIds = batch.stream()
+                    .map(movie -> movie.getString("imdb_id", ""))
+                    .collect(Collectors.toList());
                 
+                mongoRepo.logError(failedIds, e.getMessage());
+                System.out.printf("Error in batch %d/%d: %s%n", currentBatch, totalBatches, e.getMessage());
+                continue;
+            }
+        }
+
+        System.out.println("Database loading completed successfully!");
+    }
+
+    private boolean isMovieAfter2018(JsonObject movie) {
+        try {
+            String releaseDateStr = movie.getString("release_date", "");
+            if (releaseDateStr.isEmpty()) {
+                return false;
+            }
+            LocalDate releaseDate = LocalDate.parse(releaseDateStr, DATE_FORMATTER);
+            return !releaseDate.isBefore(CUT_OFF_DATE);
+        } catch (DateTimeParseException e) {
+            return false;
+        }
+    }
+
+    private JsonObject imputeMissingValues(JsonObject original) {
+        var builder = Json.createObjectBuilder();
+        
+        for (var entry : original.entrySet()) {
+            String key = entry.getKey();
+            JsonValue value = entry.getValue();
+            
+            if (value == JsonValue.NULL) {
+           
+                switch (key) {
+                    case "vote_average":
+                    case "vote_count":
+                    case "revenue":
+                    case "budget":
+                    case "runtime":
+                    case "popularity":
+                    case "imdb_rating":
+                    case "imdb_votes":
+                        builder.add(key, 0);
+                        break;
+                    
+                    case "title":
+                    case "status":
+                    case "release_date":
+                    case "imdb_id":
+                    case "original_language":
+                    case "overview":
+                    case "tagline":
+                    case "genres":
+                    case "spoken_languages":
+                    case "casts":
+                    case "director":
+                    case "poster_path":
+                        builder.add(key, "");
+                        break;
+                    
+                    default:
+                        builder.addNull(key);
+                }
+            } else {
+                builder.add(key, value);
             }
         }
         
-        if (json.containsKey("imdb_votes")) {
-            try {
-                movie.setImdbVotes(json.getInt("imdb_votes"));
-            } catch (Exception e) {
-                
-            }
-        }
-        
-        try {
-            movie.setVoteAverage(json.containsKey("vote_average") ? 
-                (float) json.getJsonNumber("vote_average").doubleValue() : 0f);
-        } catch (Exception e) {
-            movie.setVoteAverage(0f);
-        }
-        
-        try {
-            movie.setVoteCount(json.containsKey("vote_count") ? 
-                json.getInt("vote_count") : 0);
-        } catch (Exception e) {
-            movie.setVoteCount(0);
-        }
-        
-        try {
-            movie.setRevenue(json.containsKey("revenue") ? 
-                json.getJsonNumber("revenue").doubleValue() : 1000000.0);
-        } catch (Exception e) {
-            movie.setRevenue(1000000.0);
-        }
-        
-        try {
-            movie.setBudget(json.containsKey("budget") ? 
-                json.getJsonNumber("budget").doubleValue() : 1000000.0);
-        } catch (Exception e) {
-            movie.setBudget(1000000.0);
-        }
-        
-        try {
-            movie.setRuntime(json.containsKey("runtime") ? 
-                json.getInt("runtime") : 90);
-        } catch (Exception e) {
-            movie.setRuntime(90);
-        }
-        
-        try {
-            String releaseDateStr = json.getString("release_date", "1970-01-01");
-            movie.setReleaseDate(dateFormat.parse(releaseDateStr));
-        } catch (Exception e) {
-            Calendar cal = Calendar.getInstance();
-            cal.set(1970, Calendar.JANUARY, 1);
-            movie.setReleaseDate(cal.getTime());
-        }
-        
-        return movie;
+        return builder.build();
     }
 }

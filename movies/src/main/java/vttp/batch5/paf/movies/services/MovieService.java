@@ -2,53 +2,18 @@ package vttp.batch5.paf.movies.services;
 
 import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
-import org.bson.Document;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import vttp.batch5.paf.movies.repositories.MongoMovieRepository;
-import vttp.batch5.paf.movies.repositories.MySQLMovieRepository;
 
 @Service
 public class MovieService {
 
-  @Autowired
-  private MongoMovieRepository mongoRepo;
+    public List<Map<String, Object>> getProlificDirectors(int limit) {
+        
+        return null;
+    }
 
-  @Autowired
-  private MySQLMovieRepository mysqlRepo;
-
-  public List<Map<String, Object>> getProlificDirectors(int limit) {
-    List<Document> topDirectors = mongoRepo.getTopDirectors(limit);
-    
-    return topDirectors.stream()
-        .map(doc -> {
-            String directorName = doc.getString("_id");
-            Map<String, Object> financials = mysqlRepo.getDirectorFinancials(directorName);
-            
-            double totalRevenue = (Double) financials.get("total_revenue");
-            double totalBudget = (Double) financials.get("total_budget");
-            double profitLoss = totalRevenue - totalBudget;
-
-            Map<String, Object> result = new HashMap<>();
-            result.put("director_name", directorName);
-            result.put("movies_count", doc.getInteger("movies_count", 0));
-            result.put("total_revenue", totalRevenue);
-            result.put("total_budget", totalBudget);
-            result.put("profit_loss", profitLoss);
-            result.put("profit_status", profitLoss >= 0 ? "Profit" : "Loss");
-            
-            return result;
-        })
-        .toList();
-  }
-
-
-  // TODO: Task 4
-  // You may change the signature of this method by passing any number of parameters
-  // and returning any type
-  public void generatePDFReport() {
-
-  }
+    // TODO: Task 4
+    public void generatePDFReport() {
+    }
 
 }

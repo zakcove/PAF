@@ -2,7 +2,7 @@ CREATE DATABASE movies;
 
 USE movies;
 
-CREATE TABLE imdb (
+CREATE TABLE IF NOT EXISTS imdb (
     imdb_id VARCHAR(16) PRIMARY KEY,
     vote_average FLOAT,
     vote_count INT,
@@ -12,7 +12,7 @@ CREATE TABLE imdb (
     runtime INT
 ); 
 
-CREATE TABLE movie_directors (
+CREATE TABLE IF NOT EXISTS movie_directors (
     imdb_id VARCHAR(16),
     director_name VARCHAR(255),
     PRIMARY KEY (imdb_id, director_name),

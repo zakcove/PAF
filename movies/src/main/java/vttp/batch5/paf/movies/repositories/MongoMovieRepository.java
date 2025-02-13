@@ -1,104 +1,73 @@
 package vttp.batch5.paf.movies.repositories;
 
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+import org.bson.Document;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.stereotype.Repository;
-import vttp.batch5.paf.movies.models.Movie;
-import java.util.List;
-import java.util.Date;
-import org.bson.Document;
-import org.springframework.data.mongodb.core.aggregation.*;
-import static org.springframework.data.mongodb.core.aggregation.Aggregation.*;
-import org.springframework.data.mongodb.core.query.Criteria;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.mongodb.core.index.Index;
+
+import com.mongodb.client.MongoCollection;
+import jakarta.json.JsonObject;
 
 @Repository
 public class MongoMovieRepository {
 
     @Autowired
-    private MongoTemplate mongoTemplate; 
-    /*
-     * db.imdb.insertMany([
-     *   {
-     *     imdb_id: "...", title: "...", directors: [...],
-     *     overview: "...", tagline: "...", genres: [...],
-     *     imdb_rating: 0.0, imdb_votes: 0
-     *   },
-     * ])
-     */
-    public void batchInsertMovies(List<Movie> movies) {
-        if (!mongoTemplate.collectionExists("imdb")) {
-            mongoTemplate.createCollection("imdb");
-            mongoTemplate.indexOps("imdb").ensureIndex(new Index("imdb_id", Sort.Direction.ASC).unique());
-        }
+    private MongoTemplate mongoTemplate;
 
-        List<Document> documents = movies.stream()
-            .map(movie -> new Document()
-                .append("imdb_id", movie.getImdbId())
-                .append("title", movie.getTitle())
-                .append("directors", movie.getDirectors())
-                .append("overview", movie.getOverview())
-                .append("tagline", movie.getTagline())
-                .append("genres", movie.getGenres())
-                .append("imdb_rating", movie.getImdbRating())
-                .append("imdb_votes", movie.getImdbVotes()))
-            .toList();
+    private static final int BATCH_SIZE = 25;
+
+    public void batchInsertMovies(List<JsonObject> movies) {
+        MongoCollection<Document> collection = mongoTemplate.getCollection("imdb");
         
-        if (!documents.isEmpty()) {
-            mongoTemplate.getCollection("imdb").insertMany(documents);
+        for (int i = 0; i < movies.size(); i += BATCH_SIZE) {
+            int endIndex = Math.min(i + BATCH_SIZE, movies.size());
+            List<JsonObject> batch = movies.subList(i, endIndex);
+            
+            List<Document> documents = new ArrayList<>();
+            for (JsonObject movie : batch) {
+                Document doc = new Document()
+                    .append("imdb_id", movie.getString("imdb_id", ""))
+                    .append("title", movie.getString("title", ""))
+                    .append("directors", movie.getString("director", ""))
+                    .append("overview", movie.getString("overview", ""))
+                    .append("tagline", movie.getString("tagline", ""))
+                    .append("genres", movie.getString("genres", ""))
+                    .append("imdb_rating", getDoubleValue(movie, "imdb_rating"))
+                    .append("imdb_votes", getIntValue(movie, "imdb_votes"));
+
+                documents.add(doc);
+            }
+
+            collection.insertMany(documents);
         }
     }
 
-    /*
-     * db.errors.insertOne({
-     *   imdb_ids: [...],
-     *   error: "error message",
-     *   timestamp: new Date()
-     * })
-     */
-    public void logError(List<String> ids, String errorMsg) {
+    public void logError(List<String> imdbIds, String errorMessage) {
         Document errorDoc = new Document()
-            .append("imdb_ids", ids)
-            .append("error", errorMsg)
+            .append("imdb_ids", imdbIds)
+            .append("error", errorMessage)
             .append("timestamp", new Date());
-        
+
         mongoTemplate.getCollection("errors").insertOne(errorDoc);
     }
 
-    /*
-     * db.imdb.aggregate([
-     *   { $unwind: "$directors" },
-     *   { $group: {
-     *       _id: "$directors",
-     *       movies_count: { $sum: 1 }
-     *   } },
-     *   { $match: { _id: { $ne: "" } } },
-     *   { $sort: { movies_count: -1 } },
-     *   { $limit: n }
-     * ])
-     */
-    public List<Document> getTopDirectors(int limit) {
-        AggregationOperation unwindDirectors = unwind("directors");
-        AggregationOperation groupByDirector = group("directors")
-            .count().as("movies_count");
-        AggregationOperation matchNonEmpty = match(Criteria.where("_id").ne(""));
-        AggregationOperation sortByCount = sort(Sort.Direction.DESC, "movies_count");
-        AggregationOperation limitResults = limit(limit);
-
-        Aggregation aggregation = newAggregation(
-            unwindDirectors,
-            groupByDirector,
-            matchNonEmpty,
-            sortByCount,
-            limitResults
-        );
-
-        return mongoTemplate.aggregate(aggregation, "imdb", Document.class)
-            .getMappedResults();
+    private double getDoubleValue(JsonObject json, String key) {
+        try {
+            return json.getJsonNumber(key).doubleValue();
+        } catch (Exception e) {
+            return 0.0;
+        }
     }
 
-    public boolean hasData() {
-        return mongoTemplate.getCollection("imdb").countDocuments() > 0;
+    private int getIntValue(JsonObject json, String key) {
+        try {
+            return json.getJsonNumber(key).intValue();
+        } catch (Exception e) {
+            return 0;
+        }
     }
 }

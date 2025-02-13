@@ -20,7 +20,6 @@ public class Movie {
     private Double budget;
     private Integer runtime;
 
-    // Getters and Setters
     public String getImdbId() {
         return imdbId;
     }
