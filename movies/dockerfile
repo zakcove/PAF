@@ -24,7 +24,7 @@ RUN chmod a+x ./mvnw && ./mvnw package -Dmaven.test.skip=true
 # for Railway
 ENV PORT=8080
 ENV SPRING.DATASOURCE.URL=mysql://viaduct.proxy.rlwy.net:54885/railway SPRING.DATASOURCE.USERNAME=root SPRING.DATASOURCE.PASSWORD=
-ENV SPRING.DATA.MONGODB.HOST=mongodb+srv://userOne:userOne@cluster1.87r5q.mongodb.net/?retryWrites=true&w=majority&appName=Cluster1
+ENV SPRING.DATA.MONGODB.URI=
 
 # What port does the application need
 # EXPOSE ${SERVER_PORT}
